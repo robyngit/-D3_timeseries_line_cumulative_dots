@@ -1,15 +1,16 @@
 
-# Option C
-## datapoints denoted by dots; gaps in data shown as dotted lines
+# Option D
+## cumulative; datapoints denoted by dots; gaps in data shown as dotted lines
 
 ---
 
 **PROS:**
 - missing data clearly differentiated.
-- data points and mouseover tooltips make it clear metric counts are available
+- data points and mouseover tooltips make it clear where metric counts are available.
 
 **CONS:**
 - the lighter shading still overemphasizes missing data (data points with missing data the month before and after are less obvious).
+- difficult to notice spikes or trends in views/downloads.
 
 ---
 

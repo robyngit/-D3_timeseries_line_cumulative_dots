@@ -174,7 +174,7 @@
 div.tooltip {
     position: fixed;
     text-align: center;
-    width: 60px;
+    width: 95px;
     height: 25px;
     padding: 2px;
     font: 10px sans-serif;
@@ -225,19 +225,23 @@ var monthArray = d3.time.scale()
 
 // check if there is data for each month in monthArray, if so append count, otherwise append null
 var dataset = [];
+var running_total = 0;
 for(var i=0; i<monthArray.length; i++){
-
 	var n = metricMonths.indexOf(monthArray[i].getTime());
 	if (n>-1) {
-		var count = metricCount[n];
+		var running_total = running_total + metricCount[n];
+		var data_point = true;
+		var new_count = metricCount[n];
 	} else {
-		var count = null;
+		var running_total = running_total;
+		var data_point = false;
+		var new_count = null;
 	}
-	dataset.push({count: count, month: monthArray[i]});
+	dataset.push({count: running_total, month: monthArray[i], data_point: data_point, new_count: new_count});
 }
 
 // a dataset without the null values is also needed to draw the missing data lines/areas
-var dataset_no_null = dataset.filter(function(d) { return d.count !== null; });
+var dataset_no_null = dataset.filter(function(d) { return d.data_point !== false; });
 
 /*
 * ========================================================================
@@ -326,7 +330,7 @@ var xAxis_context = d3.svg.axis()
 /* === Focus Chart === */
 
 var line = d3.svg.line()
-	.defined(function(d) { return d.count !== null; })
+	.defined(function(d) { return d.data_point == true; })
 	.x(function(d) { return x(d.month); })
 	.y(function(d) { return y(d.count); });
 
@@ -349,7 +353,7 @@ var area_missing = d3.svg.area()
 /* === Context Chart === */
 
 var line_context = d3.svg.line()
-	.defined(function(d) { return d.count !== null; })
+	.defined(function(d) { return d.data_point == true; })
     .x(function(d) { return x2(d.month); })
     .y(function(d) { return y2(d.count); });
 
@@ -485,7 +489,7 @@ focus.append("g")
 
 // missing data area
 focus.append("path")
-    .datum(dataset_no_null)
+    .datum(dataset)
     .attr("class", "area_missing")
     .attr("d", area_missing)
 	.call(zoom)
@@ -507,7 +511,7 @@ focus.append("g")
 
 // missing data line
 focus.append("path")
-    .datum(dataset_no_null)
+    .datum(dataset)
     .attr("class", "line_missing")
     .attr("d", line_missing);
 
@@ -520,6 +524,7 @@ focus.append("path")
 // circles
 focus.selectAll(".dot")
 	.data(dataset_no_null)
+	//.defined(function(d) { return d.data_point == true; })
     .enter().append("circle")
       .attr("class", "dot")
       .attr("r", 3)
@@ -536,7 +541,7 @@ var div = d3.select("#metric-modal").append("div")
 /* === context chart === */
 
 context.append("path")
-    .datum(dataset_no_null)
+    .datum(dataset)
     .attr("class", "area_missing")
     .attr("d", area_context_missing);
 
@@ -546,7 +551,7 @@ context.append("path")
     .attr("d", area_context);
 
 context.append("path")
-    .datum(dataset_no_null)
+    .datum(dataset)
     .attr("class", "line_missing")
     .attr("d", line_context_missing);
 
@@ -649,7 +654,7 @@ function customTickFunction(t0, t1, dt)  {
 // from: http://bl.ocks.org/d3noob/a22c42db65eb00d4e369
 function show_tooltip(d) {
 
-	if (d.count == 1) {
+	if (d.new_count == 1) {
 		var metricName_point = metricName.slice(0, -1);
 	} else {
 		var metricName_point = metricName;
@@ -658,9 +663,9 @@ function show_tooltip(d) {
     div.transition()
 		.duration(60)
         .style("opacity", 0.98);
-    div.html("<b>" + DateFormat(d.month) + "</b><br/>"  + d.count + " " + metricName_point)
-        .style("left", (d3.event.pageX -30) + "px")//(d3.event.pageX) + "px"
-        .style("top", (d3.event.pageY -40) + "px");//(d3.event.pageY - 28) + "px"
+    div.html(d.new_count + " " + metricName_point + " in <b>" + DateFormat(d.month) + "</b><br/>" + d.count + " " + metricName + " total")
+        .style("left", (d3.event.pageX -45) + "px")
+        .style("top", (d3.event.pageY -50) + "px");
     };
 
 function hide_tooltip(d) {
@@ -760,28 +765,28 @@ function setYdomain(){
     var bisectDate = d3.bisector(function(d) { return d.month; }).right;
 
     // get the y value of the line at the left edge of view port:
-    var iL = bisectDate(dataset_no_null, xleft);
+    var iL = bisectDate(dataset, xleft);
 
-    if (dataset_no_null[iL] !== undefined && dataset_no_null[iL-1] !== undefined) {
+    if (dataset[iL] !== undefined && dataset[iL-1] !== undefined) {
 
-        var left_dateBefore = dataset_no_null[iL-1].month,
-            left_dateAfter = dataset_no_null[iL].month;
+        var left_dateBefore = dataset[iL-1].month,
+            left_dateAfter = dataset[iL].month;
 
-        var intfun = d3.interpolateNumber(dataset_no_null[iL-1].count, dataset_no_null[iL].count);
+        var intfun = d3.interpolateNumber(dataset[iL-1].count, dataset[iL].count);
         var yleft = intfun((xleft-left_dateBefore)/(left_dateAfter-left_dateBefore));
     } else {
         var yleft = 0;
     }
 
     // get the x value of the line at the right edge of view port:
-    var iR = bisectDate(dataset_no_null, xright);
+    var iR = bisectDate(dataset, xright);
 
-    if (dataset_no_null[iR] !== undefined && dataset_no_null[iR-1] !== undefined) {
+    if (dataset[iR] !== undefined && dataset[iR-1] !== undefined) {
 
-        var right_dateBefore = dataset_no_null[iR-1].month,
-            right_dateAfter = dataset_no_null[iR].month;
+        var right_dateBefore = dataset[iR-1].month,
+            right_dateAfter = dataset[iR].month;
 
-        var intfun = d3.interpolateNumber(dataset_no_null[iR-1].count, dataset_no_null[iR].count);
+        var intfun = d3.interpolateNumber(dataset[iR-1].count, dataset[iR].count);
         var yright = intfun((xright-right_dateBefore)/(right_dateAfter-right_dateBefore));
     } else {
         var yright = 0;
